@@ -35,9 +35,9 @@
 
 | SQLI \- C |  |
 | ----- | :---- |
-| Explicación del error | Hay que preparar las consultas |
-| Solución: Cambiar la línea con el código… | $query \= SQLite3::escapeString('SELECT userId, password FROM users WHERE username \= "' . $user . '"'); |
-| … por la siguiente línea | $stmt \= $db-\>prepare('SELECT userId, password FROM users WHERE username \= :username'); $stmt-\>bindValue(':username', $user, SQLITE3\_TEXT); $result \= $stmt-\>execute(); |
+| Explicación del error | La función SQLite3::escapeString() es insegura porque solo escapa comillas simples y algunos caracteres especiales, pero no protege completamente contra inyecciones SQL |
+| Solución: Cambiar la línea con el código… | $query \= SQLite3::escapeString('SELECT userId, password FROM users WHERE username \= "' . $user . '"'); $result \= $db-\>query($query) or die ("Invalid query: " . $query . ". Field user introduced is: " . $user); |
+| … por la siguiente línea | $query \= $db-\>prepare('SELECT userId, password FROM users WHERE username \= :username'); $query-\>bindValue(':username', $user, SQLITE3\_TEXT); $result \= $stmt-\>execute(); |
 
 **D**
 
@@ -45,7 +45,7 @@
 | ----- | :---- |
 | Vulnerabilidad detectada … | Inyección SQL, XSS |
 | Descripción del ataque … | No se ha construido bien la consulta. Hay que ver si el valor de body contiene HTML o Javascript puede almacenarse en la base de datos. |
-| ¿Cómo podemos hacer que sea segura esta entrada? | Separando las consultas y formateando los datos al mostrarlos. Para evitar el XSS. |
+| ¿Cómo podemos hacer que sea segura esta entrada? | Separando las consultas y formateando los datos al mostrarlos (para evitar el XSS) |
 
 
 
@@ -68,9 +68,9 @@
 
 | XSS \- C |  |
 | ----- | :---- |
-| ¿Cual es el problema? | Evitar las inyecciones sql y el xss |
-| Sustituyo el código de la/las líneas… | $query \= "SELECT commentId, username, body FROM comments C, users U WHERE C.playerId \=".$\_GET\['id'\]." AND U.userId \= C.userId order by C.playerId desc";\<div\>                 \<h4\> ". $row\['username'\] ."\</h4\>                  \<p\>commented: " . $row\['body'\] . "\</p\>               \</div\>  |
-| Por el siguiente código | $playerId \= (int) $\_GET\['id'\];     $stmt \= $db-\>prepare("SELECT commentId, username, body FROM comments C, users U WHERE C.playerId \= :playerId AND U.userId \= C.userId ORDER BY C.playerId DESC");     $stmt-\>bindValue(':playerId', $playerId, SQLITE3\_INTEGER); \<div\>                 \<h4\> " . htmlspecialchars($row\['username'\], ENT\_QUOTES, 'UTF-8') . "\</h4\>                 \<p\>commented: " . htmlspecialchars($row\['body'\], ENT\_QUOTES, 'UTF-8') . "\</p\>               \</div\> |
+| ¿Cual es el problema? | Hay que escapar las  |
+| Sustituyo el código de la/las líneas… | echo "\<div\> \<h4\> ". $row\['username'\] ."\</h4\>  \<p\>commented: " . $row\['body'\] .    "\</p\> \</div\>";|
+| Por el siguiente código | echo "\<div\> \<h4\>" . htmlspecialchars($row\['username'\], ENT\_QUOTES, 'UTF-8') . "\</h4\> \<p\>commented: " . htmlspecialchars($row\['body'\], ENT\_QUOTES, 'UTF-8') .  "\</p\> \</div\>";|
 
 
 **D**
@@ -83,10 +83,7 @@
 
 **A**
 
-- Validación de nombre de usuario y contraseña. 	
-- Verificar si el usuario registrado ya existe.
-- Encriptar la contraseña
-- Separar la sentencia 
+Para evitar riesgos, debemos verificar si el nombre de usuario ya existe en la base de datos, encriptar la contraseña antes de guardarla para protegerla, y usar consultas preparadas para separar las sentencias SQL y prevenir ataques de inyección. Estas medidas aseguran que los datos de los usuarios estén protegidos y que la aplicación sea más segura.
 
 ```php
 <?php
@@ -141,12 +138,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 
 **B**
 
-- Iniciar sesión en vez de usar las cookies
-- Validar usuario y contraseña (Si son válidos)
-- Separar la sentencia
-- Verificar si la contraseña es válida (Almacenar id de usuario y usuario en sesión)
-- En logout ( Eliminar variables de sesión y destruir la sesion)
-- Si no hay usuario logueado, mostrar login
+Para evitar riesgos, debemos verificar si el nombre de usuario ya existe en la base de datos, encriptar la contraseña antes de guardarla para protegerla, y usar consultas preparadas para separar las sentencias SQL y prevenir ataques de inyección. Estas medidas aseguran que los datos de los usuarios estén protegidos y que la aplicación sea más segura.
 
 ```php
 <?php
@@ -211,11 +203,7 @@ if (!$login_ok) {
 
 **C**
 
-- Autenticación
-- Redirección a login si no hay usuario logueado
-- Control de acceso basado en roles
-- Protección CSRF
-- Limitar el registro
+En register.php, debemos redirigir a los usuarios no autenticados al login y aplicar control de acceso basado en roles para restringir quién puede registrarse. Además, implementamos protección CSRF usando un token único en los formularios y limitamos el acceso al registro solo a usuarios con permisos específicos.
 
 
 **D**
@@ -239,10 +227,7 @@ No está bien asegurada la sesión del usuario. Se guarda en una cookie y en tex
 
 ## Servidores web
 
-- Uso de HTTPS
-- Buena configuración del Servidor Web
-- Autenticación y Gestión de Sesiones
-- Protección Contra Inyecciones de SQL, contra XSS y CSRF
+Para asegurar la sesión del usuario, debemos usar HTTPS y configurar correctamente el servidor con medidas como HSTS. La autenticación debe incluir regeneración de sesión al iniciar sesión y protección con cookies HttpOnly y Secure. Para prevenir inyecciones SQL, XSS y CSRF, implementamos consultas preparadas, escapamos entradas y usamos tokens CSRF. Si la sesión no está bien asegurada, podemos mejorar la gestión de cookies y añadir un tiempo de expiración o límites para protegerla.
 
 
 ## CSRF
@@ -251,14 +236,15 @@ No está bien asegurada la sesión del usuario. Se guarda en una cookie y en tex
 
 | CSRF \- A |  |
 | ----- | :---- |
-| En el campo … | Team usamos el código que veremos a continuación |
+| En el campo … | En "Team", usamos el código que veremos a continuación |
 | Introduzco … | \<a href="http://web.pagos/donate.php?amount=100\&receiver=attacker" style="text-decoration: none;"\> \<button\>Profile\</button\> \</a\> |
 
 **B**
 
-```html
-<img src="http://web.pagos/donate.php?amount=100&receiver=attacker" style="display:none;">
-```
+| CSRF \- B |  |
+| ----- | :---- |
+| En el campo … | En el campo "Team Name", usamos el código que veremos a continuación |
+| Introduzco … | \<img src="http://web.pagos/donate.php?amount=100&receiver=attacker" style="display:none;"> |
 
  Ese código para enviar al usuario silenciosamente al enlace.
 
