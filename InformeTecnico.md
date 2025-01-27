@@ -69,8 +69,8 @@
 | XSS \- C |  |
 | ----- | :---- |
 | ¿Cual es el problema? | Hay que escapar las  |
-| Sustituyo el código de la/las líneas… | echo "\<div\> \<h4\> ". $row\['username'\] ."\</h4\>  \<p\>commented: " . $row\['body'\] .    "\</p\> \</div\>";|
-| Por el siguiente código | echo "\<div\> \<h4\>" . htmlspecialchars($row\['username'\], ENT\_QUOTES, 'UTF-8') . "\</h4\> \<p\>commented: " . htmlspecialchars($row\['body'\], ENT\_QUOTES, 'UTF-8') .  "\</p\> \</div\>";|
+| Sustituyo el código de la/las líneas… | $body = $_POST['body']; $body = SQLite3::escapeString($body);|
+| Por el siguiente código | $body = $_POST['body']; $escapedBody = SQLite3::escapeString($body);|
 
 
 **D**
@@ -138,7 +138,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 
 **B**
 
-Para evitar riesgos, debemos verificar si el nombre de usuario ya existe en la base de datos, encriptar la contraseña antes de guardarla para protegerla, y usar consultas preparadas para separar las sentencias SQL y prevenir ataques de inyección. Estas medidas aseguran que los datos de los usuarios estén protegidos y que la aplicación sea más segura.
+Para evitar riesgos, es importante usar sesiones para gestionar la autenticación, prevenir inyecciones SQL con consultas preparadas, verificar las contraseñas de manera segura usando `password_verify()`, asegurarse de que el cierre de sesión sea seguro y proteger contra ataques CSRF. Estas medidas ayudan a mantener los datos del usuario seguros y garantizan un acceso controlado y protegido.
 
 ```php
 <?php
@@ -197,6 +197,9 @@ if (isset($_POST['Logout'])) {
 
 # Si el usuario no está logueado, mostrar la página de login
 if (!$login_ok) {
+    header("Location: login.php");
+    exit();
+}
 ?>
 
 ```

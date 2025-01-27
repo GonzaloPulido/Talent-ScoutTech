@@ -64,6 +64,9 @@ if (isset($_POST['Logout'])) {
 
 // Si el usuario no está logueado, mostrar la página de login
 if (!$login_ok) {
+    header("Location: login.php");
+    exit();
+}
 ?>
     <!doctype html>
     <html lang="es">
